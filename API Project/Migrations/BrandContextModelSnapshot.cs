@@ -22,6 +22,20 @@ namespace API_Project.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("API_Project.Models.Authentication", b =>
+                {
+                    b.Property<string>("UserName")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("UserName");
+
+                    b.ToTable("Authentications");
+                });
+
             modelBuilder.Entity("API_Project.Models.Brand", b =>
                 {
                     b.Property<Guid>("ID")

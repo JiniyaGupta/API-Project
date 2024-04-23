@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace API_Project.Migrations
 {
     [DbContext(typeof(BrandContext))]
-    [Migration("20240401061124_Initial")]
-    partial class Initial
+    [Migration("20240417115507_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

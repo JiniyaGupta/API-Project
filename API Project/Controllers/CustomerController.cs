@@ -1,37 +1,40 @@
 ﻿using API_Project.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using API_Project.Repository;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using API_Project.Authorization;
+using Microsoft.AspNetCore.Identity;
+using AuthorizationMiddleware = API_Project.Authorization.AuthorizationMiddleware;
 
 namespace API_Project.Controllers
 {
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
+    //[ServiceFilter(typeof(AuthorizationMiddleware))]
     public class CustomerController : ControllerBase
     {
-        private readonly BrandContext _dbContext;
-        public CustomerController(BrandContext dbContext)
+        private readonly ICustomer _customerRepository;
+
+        public CustomerController(ICustomer customerRepository)
         {
-            _dbContext = dbContext;
-        }
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Customer>>> GetCustomers()
-        {
-            if (_dbContext.Customers == null)
-            {
-                return NotFound();
-            }
-            return await _dbContext.Customers.ToListAsync();
+            _customerRepository = customerRepository;
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Customer>> GetCustomer(Guid id)
+        [HttpGet ("GetAllCustomers")]
+        public async Task<IActionResult> GetCustomers()
         {
-            if (_dbContext.Customers == null)
-            {
-                return NotFound();
-            }
-            var customer = await _dbContext.Customers.FindAsync(id);
+            var customers = await _customerRepository.GetAllCustomers();
+            return Ok(customers);
+        }
+
+        [HttpGet("GetCustomerByID")]
+        public async Task<ActionResult<Customer>> GetCustomerById(Guid id)
+        {
+            var customer = await _customerRepository.GetCustomerById(id);
             if (customer == null)
             {
                 return NotFound();
@@ -39,67 +42,29 @@ namespace API_Project.Controllers
             return customer;
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Customer>> PostCustomer(Customer customer)
+        [HttpPost("CreateCustomer")]
+        public async Task<IActionResult> PostCustomer(Customer customer)
         {
-            customer.CustomerId = Guid.NewGuid();
-            _dbContext.Customers.Add(customer);
-            await _dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetCustomer), new { id = customer.CustomerId }, customer);
+            await _customerRepository.AddCustomer(customer);
+            return CreatedAtAction(nameof(GetCustomerById), new { id = customer.CustomerId }, customer);
         }
 
-        [HttpPut]
+        [HttpPut("ModifyCustomer")]
         public async Task<IActionResult> PutCustomer(Guid id, Customer customer)
         {
             if (id != customer.CustomerId)
             {
                 return BadRequest();
             }
-            _dbContext.Entry(customer).State = EntityState.Modified;
-
-            try
-            {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CustomerAvailable(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            return Ok();
-        }
-        private bool CustomerAvailable(Guid id)
-        {
-            return (_dbContext.Customers?.Any(x => x.CustomerId == id)).GetValueOrDefault();
+            await _customerRepository.UpdateCustomer(customer);
+            return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("DeleteCustomer")]
         public async Task<IActionResult> DeleteCustomer(Guid id)
         {
-            if (_dbContext.Customers == null)
-            {
-                return NotFound();
-            }
-
-            var customer = await _dbContext.Customers.FindAsync(id);
-            if (customer == null)
-            {
-                return NotFound();
-            }
-
-            _dbContext.Customers.Remove(customer);
-            await _dbContext.SaveChangesAsync();
-            return Ok();
+            await _customerRepository.DeleteCustomer(id);
+            return NoContent();
         }
-
     }
-
-    
 }

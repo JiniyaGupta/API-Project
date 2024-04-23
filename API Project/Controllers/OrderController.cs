@@ -1,117 +1,98 @@
-﻿using API_Project.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using API_Project.Models;
+using API_Project.Repository;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace API_Project.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class OrderController : ControllerBase
+    public class OrderProductController : ControllerBase
     {
-        private readonly BrandContext _dbContext;
-        public OrderController(BrandContext dbContext)
+        private readonly IOrder _orderProductRepository;
+
+        public OrderProductController(IOrder orderProductRepository)
         {
-            _dbContext = dbContext;
+            _orderProductRepository = orderProductRepository;
         }
+
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Order>>> GetBrands()
+        public async Task<ActionResult<IEnumerable<Order>>> GetOrderProducts()
         {
-            if (_dbContext.Orders == null)
-            {
-                return NotFound();
-            }
-            return await _dbContext.Orders.ToListAsync();
+            var orderProducts = await _orderProductRepository.GetOrderProducts();
+            return Ok(orderProducts);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Order>> GetOrder(Guid id)
+        public async Task<ActionResult<Order>> GetOrderProduct(Guid id)
         {
-            if (_dbContext.Orders == null)
+            var orderProduct = await _orderProductRepository.GetOrderProductById(id);
+            if (orderProduct == null)
             {
                 return NotFound();
             }
-            var order = await _dbContext.Orders.FindAsync(id);
-            if (order == null)
-            {
-                return NotFound();
-            }
-            return order;
+            return orderProduct;
         }
 
-        [HttpPost("orderProduct")]
-        public async Task<ActionResult<Order>> PostBrand(Order order)
+        [HttpPost("Order")]
+        public async Task<ActionResult<Order>> Order(Order orderProduct)
         {
-            // _dbContext.Orders.Add(order);
-            //  await _dbContext.SaveChangesAsync();
-
-            //return CreatedAtAction(nameof(GetOrder), new { id = order.OrderId }, order);
-            Order orderpro = new Order();
-            orderpro.OrderId = Guid.NewGuid();
-            orderpro.CustomerId = order.CustomerId;
-            orderpro.ID = order.ID;
-            orderpro.quantity = order.quantity;
-            _dbContext.Orders.Add(orderpro);
-            await _dbContext.SaveChangesAsync();
-            var gotorder = await _dbContext.Brands.FindAsync(order.ID);
-            if (gotorder == null)
-            {
-                return NotFound();
-            }
-
-            gotorder.Quantity -= order.quantity;
-            await _dbContext.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetOrder), new { id = orderpro.OrderId }, orderpro);
+            var createdOrderProduct = await _orderProductRepository.CreateOrder(orderProduct);
+            return CreatedAtAction(nameof(GetOrderProduct), new { id = createdOrderProduct.OrderId }, createdOrderProduct);
         }
 
-        [HttpPut]
-        public async Task<IActionResult> PutOrder(Guid id, Order order)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutOrderProduct(Guid id, Order orderProduct)
         {
-            if (id != order.OrderId)
+            if (id != orderProduct.OrderId)
             {
                 return BadRequest();
             }
-            _dbContext.Entry(order).State = EntityState.Modified;
 
-            try
+            var result = await _orderProductRepository.UpdateOrder(orderProduct);
+            if (!result)
             {
-                await _dbContext.SaveChangesAsync();
+                return NotFound();
             }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!OrderAvailable(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            return Ok();
-        }
-        private bool OrderAvailable(Guid id)
-        {
-            return (_dbContext.Orders?.Any(x => x.ID == id)).GetValueOrDefault();
+
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteOrder(Guid id)
+        public async Task<IActionResult> DeleteOrderProduct(Guid id)
         {
-            if (_dbContext.Orders == null)
+            var result = await _orderProductRepository.DeleteOrder(id);
+            if (!result)
             {
                 return NotFound();
             }
 
-            var order = await _dbContext.Orders.FindAsync(id);
-            if (order == null)
-            {
-                return NotFound();
-            }
-
-            _dbContext.Orders.Remove(order);
-            await _dbContext.SaveChangesAsync();
-            return Ok();
+            return NoContent();
         }
+
+        [HttpGet("Most-SoldProduct")]
+
+        public async Task<IActionResult> GetMostSoldProductAsync()
+        {
+            try
+            {
+                var mostSoldProduct = await _orderProductRepository.GetMostSoldProductAsync();
+                if(mostSoldProduct == null )
+                {
+                    return NotFound();
+                }
+
+                return Ok(mostSoldProduct);
+            }
+
+            catch (Exception ex)
+            {
+                return StatusCode(500,ex.Message);
+            }
+        }
+        
+        
     }
 }

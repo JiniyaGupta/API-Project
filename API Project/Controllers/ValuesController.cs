@@ -1,103 +1,68 @@
 ﻿using API_Project.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
-using Microsoft.IdentityModel.Tokens;
+using API_Project.Repository;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API_Project.Controllers
 {
+   // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class ValuesController : ControllerBase
+    public class ProductController : ControllerBase
     {
-        private readonly BrandContext _dbContext;
-        public ValuesController(BrandContext dbContext)
+        private readonly IProduct _productRepository;
+
+        public ProductController(IProduct productRepository)
         {
-            _dbContext = dbContext;
+            _productRepository = productRepository;
         }
-        [HttpGet("/GetAllProducts")]
-        public async Task<ActionResult<IEnumerable<Brand>>> GetBrands()
+
+        [HttpGet("GetAllProducts")]
+        public async Task<IActionResult> GetAllProducts()
         {
-            if (_dbContext.Brands == null)
+            var products = await _productRepository.GetAllProducts();
+            return Ok(products);
+        }
+
+        [HttpGet("GetProductById/{id}")]
+        public async Task<ActionResult<Brand>> GetProductById(Guid id)
+        {
+            var product = await _productRepository.GetProductById(id);
+            if (product == null)
             {
                 return NotFound();
             }
-            return await _dbContext.Brands.ToListAsync();
+            return product;
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Brand>> GetBrand(Guid id)
+        [HttpPost("AddProduct")]
+        public async Task<ActionResult<Brand>> AddProduct(Brand product)
         {
-            if (_dbContext.Brands == null)
-            {
-                return NotFound();
-            }
-            var brand = await _dbContext.Brands.FindAsync(id);
-            if (brand == null)
-            {
-                return NotFound();
-            }
-            return brand;
-        }
-        [HttpPost("/addProduct")]
-        public async Task<ActionResult<Brand>> PostBrand(Brand brand)
-        {
-            _dbContext.Brands.Add(brand);
-            await _dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetBrands), new { id = brand.ID }, brand);
+            await _productRepository.AddProduct(product);
+            return CreatedAtAction(nameof(GetProductById), new { id = product.ID }, product);
         }
 
-
-        [HttpPut]
-        public async Task<IActionResult> PutBrand(Guid id, Brand brand)
+        [HttpPut("UpdateProduct/{id}")]
+        public async Task<IActionResult> UpdateProduct(Guid id, Brand product)
         {
-            if (id != brand.ID)
+            if (id != product.ID)
             {
                 return BadRequest();
             }
-            _dbContext.Entry(brand).State = EntityState.Modified;
-
-            try
-            {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!BrandAvailable(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            return Ok();
+            await _productRepository.UpdateProduct(product);
+            return NoContent();
         }
-        private bool BrandAvailable(Guid id)
-            {
-                return (_dbContext.Brands?.Any(x => x.ID == id)).GetValueOrDefault();
-            }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteBrand(Guid id)
+        [HttpDelete("DeleteProduct/{id}")]
+        public async Task<IActionResult> DeleteProduct(Guid id)
         {
-            if (_dbContext.Brands == null)
-            {
-                return NotFound();
-            }
-
-            var brand = await _dbContext.Brands.FindAsync(id);
-            if(brand == null)
-            {
-                return NotFound();            
-            }
-
-            _dbContext.Brands.Remove(brand);
-            await _dbContext.SaveChangesAsync();
-            return Ok();
-        }     
+            await _productRepository.DeleteProduct(id);
+            return NoContent();
+        }
     }
 }
